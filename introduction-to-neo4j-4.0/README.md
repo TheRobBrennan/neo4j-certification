@@ -59,6 +59,20 @@ GraphGists are teaching tools which allow you to explore how data in a particula
 
 ### The Neo4j Graph Platform
 
+#### Neo4j DBMS
+
+A Neo4j instance is a single process that runs the Neo4j server code. A Neo4j instance at a minimum contains two databases, the system database and the default database, neo4j.
+
+The **system** database stores metadata about the databases for the installation, as well as security configuration. The **default** database (named _neo4j_ by default) is the “user” database where you implement your graph data model.
+
+##### Neo4j 4.0 DBMS
+
+In Neo4j Enterprise Edition 4.0, you may have more than one “user” database.
+
+##### Index-free adjacency in Neo4j
+
+With index-free adjacency, when a node or relationship is written to the database, it is stored in the database as connected and any subsequent access to the data is done using pointer navigation which is very fast. Since Neo4j is a native graph database (i.e. it has a graph as its core data model), it supports very large graphs where connected data can be traversed in **constant time** without the need for an index.
+
 ### Introduction to Cypher
 
 ### Using Where to Filter Queries
