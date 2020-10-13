@@ -1,0 +1,16 @@
+{
+  "name": "neo4j-certification",
+  "version": "0.0.0",
+  "description": "Random thoughts and musings on the path to Neo4j certification",
+  "keywords": [],
+  "author": "Rob Brennan <rob@therobbrennan.com> (therobbrennan.com)",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheRobBrennan/neo4j-certification.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TheRobBrennan/neo4j-certification/issues"
+  },
+  "homepage": "https://github.com/TheRobBrennan/neo4j-certification#readme"
+}
