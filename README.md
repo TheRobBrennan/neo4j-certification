@@ -1,1 +1,1 @@
-I've been intrigued by the world of Neo4j and graph databases lately. This repo will track my progress and random thoughts as I work towards achieving Neo4j certification.
+I've been intrigued by the world of [Neo4j](https://neo4j.com) and [graph databases](https://en.wikipedia.org/wiki/Graph_database) lately. This repo will track my progress and random thoughts as I work towards achieving [Neo4j certification](https://neo4j.com/graphacademy/neo4j-certification/).
