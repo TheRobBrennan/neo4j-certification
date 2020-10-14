@@ -230,6 +230,165 @@ RETURN movRel.roles
 
 ### Using Where to Filter Queries
 
+#### Example: Testing ranges
+
+```
+// Test multiple values
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released = 2008 OR m.released = 2009
+RETURN p, m
+
+// Specify a range
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released >= 2003 AND m.released <= 2004
+RETURN p.name, m.title, m.released
+
+// ALTERNATIVE: Specify a range
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE 2003 <= m.released <= 2004
+RETURN p.name, m.title, m.released
+```
+
+#### Testing existence of a property
+
+Recall that a property is associated with a particular node or relationship. A property is not associated with a node with a particular label or relationship type.
+
+```
+// Only match Movie nods that contain a tagline property
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name='Jack Nicholson' AND exists(m.tagline)
+RETURN m.title, m.tagline
+```
+
+#### Testing strings
+
+```
+// find all actors in the Movie database whose first name is Michael
+MATCH (p:Person)-[:ACTED_IN]->()
+WHERE p.name STARTS WITH 'Michael'
+RETURN p.name
+
+// In this example where we are converting a property to lower case, if an index has been created for this property, it will not be used at runtime.
+MATCH (p:Person)-[:ACTED_IN]->()
+WHERE toLower(p.name) STARTS WITH 'michael'
+RETURN p.name
+```
+
+#### Testing with regular expressions
+
+If you prefer, you can test property values using regular expressions. You use the syntax `=~` to specify the regular expression you are testing with.
+
+```
+// Retrieve all Person nodes with a name property that begins with ‘Tom’
+MATCH (p:Person)
+WHERE p.name =~'Tom.*'
+RETURN p.name
+```
+
+If you specify a regular expression. The index will never be used. In addition, the property value must fully match the regular expression.
+
+#### Example: Testing with patterns – 1
+
+```
+// Return all Person nodes of people who wrote movies
+MATCH (p:Person)-[:WROTE]->(m:Movie)
+RETURN p.name, m.title
+```
+
+#### Example: Testing with patterns – 2
+
+```
+// Modify above example to exclude people who directed that particular movie
+MATCH (p:Person)-[:WROTE]->(m:Movie)
+WHERE NOT exists( (p)-[:DIRECTED]->(m) )
+RETURN p.name, m.title
+```
+
+#### Example: Testing with patterns – 3
+
+```
+// Find Gene Hackman and the movies that he acted in with another person who also directed the movie.
+MATCH (gene:Person)-[:ACTED_IN]->(m:Movie)<-[:ACTED_IN]-(other:Person)
+WHERE gene.name= 'Gene Hackman'
+AND exists( (other)-[:DIRECTED]->(m) )
+RETURN  gene, other, m
+```
+
+#### Testing with list values
+
+If you have a set of values you want to test with, you can place them in a list or you can test with an existing list in the graph. A Cypher list is a comma-separated set of values within square brackets.
+
+You can place either numeric or string values in the list, but typically, elements of the list are of the same type of data. If you are testing with a property of a string type, then all the elements of the list should be strings.
+
+```
+// Retrieve Person nodes of people born in 1965 or 1970
+MATCH (p:Person)
+WHERE p.born IN [1965, 1970]
+RETURN p.name as name, p.born as yearBorn
+```
+
+#### Testing list values in the graph
+
+You can also compare a value to an existing list in the graph.
+
+We know that the :ACTED_IN relationship has a property, roles that contains the list of roles an actor had in a particular movie they acted in.
+
+```
+// Return the name of the actor who played Neo in the movie The Matrix
+MATCH (p:Person)-[r:ACTED_IN]->(m:Movie)
+WHERE  'Neo' IN r.roles AND m.title='The Matrix'
+RETURN p.name
+```
+
+#### Exercise 4: Filtering queries using the WHERE clause
+
+```
+// Retrieve all movies released in 2000 by testing the node label and the released property, returning the movie titles.
+MATCH (m)
+WHERE m:Movie AND m.released = 2000
+RETURN m.title
+
+// Retrieve all people that wrote movies by testing the relationship between two nodes, returning the names of the people and the titles of the movies.
+MATCH (a)-[rel]->(m)
+WHERE a:Person AND type(rel) = 'WROTE' AND m:Movie
+RETURN a.name as Name, m.title as Movie
+
+// Retrieve all people in the graph that do not have a born property, returning their names.
+MATCH (a:Person)
+WHERE NOT exists(a.born)
+RETURN a.name as Name
+
+// Retrieve all people related to movies where the relationship has the rating property, then return their name, movie title, and the rating.
+MATCH (a:Person)-[rel]->(m:Movie)
+WHERE exists(rel.rating)
+RETURN a.name as Name, m.title as Movie, rel.rating as Rating
+
+// Retrieve all REVIEWED relationships from the graph where the summary of the review contains the string fun, returning the movie title reviewed and the rating and summary of the relationship
+MATCH (:Person)-[r:REVIEWED]->(m:Movie)
+WHERE toLower(r.summary) CONTAINS 'fun'
+RETURN  m.title as Movie, r.summary as Review, r.rating as Rating
+
+// Retrieve all people who have produced a movie, but have not directed a movie, returning their names and the movie titles.
+MATCH (a:Person)-[:PRODUCED]->(m:Movie)
+WHERE NOT ((a)-[:DIRECTED]->(:Movie))
+RETURN a.name, m.title
+
+// Retrieve the movies and their actors where one of the actors also directed the movie, returning the actors names, the director’s name, and the movie title.
+MATCH (a1:Person)-[:ACTED_IN]->(m:Movie)<-[:ACTED_IN]-(a2:Person)
+WHERE exists( (a2)-[:DIRECTED]->(m) )
+RETURN  a1.name as Actor, a2.name as `Actor/Director`, m.title as Movie
+
+// Retrieve all movies that were released in the years 2000, 2004, and 2008, returning their titles and release years.
+MATCH (m:Movie)
+WHERE m.released IN [2000, 2004, 2008]
+RETURN m.title, m.released
+
+// Retrieve the movies that have an actor’s role that is the name of the movie, return the movie title and the actor’s name.
+MATCH (a:Person)-[r:ACTED_IN]->(m:Movie)
+WHERE m.title in r.roles
+RETURN  m.title as Movie, a.name as Actor
+```
+
 ### Working with Patterns
 
 ### Working with Cypher Data
