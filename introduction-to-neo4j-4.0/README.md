@@ -708,6 +708,122 @@ What construct best represents a node in the graph?
 
 ### Controlling the Query Chain
 
+#### Intermediate processing using WITH
+
+Here is an example where we return each actor, the number of movies they acted in, and the titles of the movies:
+
+```
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+RETURN a.name, count(a) AS numMovies,
+       collect(m.title) as movies
+```
+
+What if we wanted to further qualify the query so that we only return the actors who have made 2 or 3 movies? What we really want to do is test the count of each movie, but the count is an aggregating function so we cannot test it until all nodes have been retrieved. One way to to this is with the WITH clause in Cypher.
+
+##### Example: Using WITH
+
+You use the WITH clause to perform intermediate processing that is not possible in a RETURN clause.
+
+```
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie) // retrieving all actors and their movies
+WITH  a, count(a) AS numMovies, collect(m.title) as movies  // use WITH to perform intermediate processing like count(), collect()...
+WHERE 1 < numMovies < 4
+RETURN a.name, numMovies, movies
+```
+
+When you use the WITH clause, you specify the variables from the previous part of the query you want to pass on to the next part of the query.
+
+#### Using WITH and UNWIND
+
+You have learned to create lists of nodes during a query using the collect() function. If you have collected a subset of nodes in a query, you can use UNWIND to return the rows for a collection:
+
+```
+MATCH (m:Movie)<-[:ACTED_IN]-(p:Person)
+WITH collect(p) AS actors,
+count(p) AS actorCount, m
+UNWIND actors AS actor
+RETURN m.title, actorCount, actor.name
+```
+
+The query retrieves all people who acted in movies. During the query, for each movie, the list of actors are collected, as well as the count of actors. The WITH clause makes the variables actors, actorCount, and m available for the rest of the query processing. The UNWIND clause turns the list of actors into rows of actors. Then the query returns the title of the movie, the actor count, and the actor name for each row of the actors collection.
+
+You find that you use WITH and UNWIND frequently when you are importing data into the graph.
+
+##### Example: Subqueries with WITH
+
+Here is an example where we retrieve all movies reviewed by a person. For a particular movie found, we want the list of directors of the movie so we do a second query, a subquery as follows:
+
+```
+MATCH (m:Movie)<-[rv:REVIEWED]-(r:Person)
+WITH m, rv, r
+MATCH (m)<-[:DIRECTED]-(d:Person)
+RETURN m.title, rv.rating, r.name, collect(d.name)
+```
+
+##### Example: Another subquery
+
+Here is another example where we want to find all actors who have acted in at least five movies, and find (optionally) the movies they directed and return the person and those movies.
+
+```
+MATCH (p:Person)
+WITH p, size((p)-[:ACTED_IN]->()) AS movies
+WHERE movies >= 5
+OPTIONAL MATCH (p)-[:DIRECTED]->(m:Movie)
+RETURN p.name, m.title
+```
+
+In this example, we first retrieve all people, but then specify a pattern in the WITH clause where we calculate the number of :ACTED_IN relationships retrieved using the size() function. If this value is greater than five, we then also retrieve the :DIRECTED paths to return the name of the person and the title of the movie they directed. In the result, we see that these actors acted in more than five movies, but Tom Hanks is the only actor who directed a movie and thus the only person to have a value for the movie. Notice here that m only refers to movies that were directed by p.
+
+#### Performing subqueries with CALL
+
+In a CALL clause, you specify a query that returns, typically a set of nodes. The set of nodes returned in the CALL clause can be used for a subsequent query.
+
+```
+CALL
+{MATCH (p:Person)-[:REVIEWED]->(m:Movie)
+RETURN  m}
+MATCH (m) WHERE m.released=2000
+RETURN m.title, m.released
+```
+
+The variable m used in the subquery is used in the next query.
+
+#### Exercise 7: Controlling query processing
+
+```
+// Retrieve the actors who have acted in exactly five movies, returning the name of the actor, and the list of movies for that actor.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WITH  a, count(m) AS numMovies, collect(m.title) AS movies
+WHERE numMovies = 5
+RETURN a.name, movies
+
+// Retrieve all actors that have not appeared in more than 3 movies. Return their names and list of movies.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WITH  a,  count(a) AS numMovies, collect(m.title) AS movies
+WHERE numMovies <= 3
+RETURN a.name, movies
+
+// Retrieve the movies that have at least 2 directors, and optionally the names of people who reviewed the movies.
+MATCH (m:Movie)
+WITH m, size((:Person)-[:DIRECTED]->(m)) AS directors
+WHERE directors >= 2
+OPTIONAL MATCH (p:Person)-[:REVIEWED]->(m)
+RETURN  m.title, p.name
+
+// Write a Cypher query that retrieves all actors that acted in movies, and collects the list of movies for any actor that acted in more than five movies. Return the name of the actor and the list.
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WITH p, collect(m) AS movies
+WHERE size(movies)  > 5
+RETURN p.name, movies
+
+// Modify the query you just wrote so that before the query processing ends, you unwind the list of movies and then return the name of the actor and the title of the associated movie
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WITH p, collect(m) AS movies
+WHERE size(movies)  > 5
+WITH p, movies UNWIND movies AS movie
+RETURN p.name, movie.title
+```
+
 ### Controlling Results Returned
 
 ### Creating Nodes
