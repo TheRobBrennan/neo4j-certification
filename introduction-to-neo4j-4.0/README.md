@@ -826,6 +826,138 @@ RETURN p.name, movie.title
 
 ### Controlling Results Returned
 
+#### Example with duplicate results
+
+Here is a simple example where duplicate data is returned. Tom Hanks both acted in and directed the movie, That Thing You Do, so the movie is returned twice in the result stream:
+
+```
+MATCH (p:Person)-[:DIRECTED | ACTED_IN]->(m:Movie)
+WHERE p.name = 'Tom Hanks'
+RETURN m.title, m.released
+
+// We can eliminate the duplication by specifying the DISTINCT keyword
+MATCH (p:Person)-[:DIRECTED | ACTED_IN]->(m:Movie)
+WHERE p.name = 'Tom Hanks'
+RETURN DISTINCT m.title, m.released
+```
+
+#### Duplication in lists
+
+You can also specify DISTINCT when collecting elements for a list. Here is another query where we collect the names of people who acted in, directed, or wrote movies released in 2003.
+
+```
+MATCH (p:Person)-[:ACTED_IN | DIRECTED | WROTE]->(m:Movie)
+WHERE m.released = 2003
+RETURN m.title, collect(p.name) AS credits
+
+// We can eliminate the duplication by specifying the DISTINCT keyword when collecting the results
+MATCH (p:Person)-[:ACTED_IN | DIRECTED | WROTE]->(m:Movie)
+WHERE m.released = 2003
+RETURN m.title, collect(DISTINCT p.name) AS credits
+```
+
+#### Using WITH and DISTINCT to eliminate duplication
+
+Another way that you can avoid duplication is to use WITH and DISTINCT together as follows:
+
+```
+MATCH (p:Person)-[:DIRECTED | ACTED_IN]->(m:Movie)
+WHERE p.name = 'Tom Hanks'
+WITH DISTINCT m
+RETURN m.released, m.title
+```
+
+#### Ordering results
+
+```
+MATCH (p:Person)-[:DIRECTED | ACTED_IN]->(m:Movie)
+WHERE p.name = 'Tom Hanks' OR p.name = 'Keanu Reeves'
+RETURN DISTINCT m.title, m.released ORDER BY m.released DESC
+```
+
+#### Ordering multiple results
+
+```
+MATCH (p:Person)-[:DIRECTED | ACTED_IN]->(m:Movie)
+WHERE p.name = 'Tom Hanks' OR p.name = 'Keanu Reeves'
+RETURN DISTINCT m.title, m.released ORDER BY m.released DESC , m.title
+```
+
+#### Limiting the number of results
+
+```
+MATCH (m:Movie)
+RETURN m.title as title, m.released as year ORDER BY m.released DESC LIMIT 10
+```
+
+#### Limiting number of intermediate results
+
+Furthermore, you can use the LIMIT keyword with the WITH clause to limit intermediate results. A best practice is to limit the number of rows processed before they are collected. Here is an example where we want to limit the number of actors collected in this query by the number 6:
+
+```
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WITH m, p LIMIT 6
+RETURN collect(p.name), m.title
+```
+
+#### Another example using LIMIT
+
+Here is another example of limiting results. Suppose we want to retrieve five movies and for each movie, return the :ACTED_IN path to at most two actors. Here is one way to perform this query:
+
+```
+MATCH (m:Movie)
+WITH m LIMIT 5
+MATCH path = (m)<-[:ACTED_IN]-(:Person)
+WITH m, collect (path) AS paths
+RETURN m, paths[0..2]
+```
+
+#### Alternative to LIMIT
+
+```
+// Count the number of movies during the query and we return the results once we have reached 5 movies
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WITH a, count(*) AS numMovies, collect(m.title) AS movies
+WHERE numMovies = 5
+RETURN a.name, numMovies, movies
+
+// An alternative to the above code is:
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WITH a, collect(m.title) AS movies
+WHERE size(movies) = 5
+RETURN a.name, movies
+```
+
+#### Exercise 8: Controlling results returned
+
+```
+// You want to know what actors acted in movies in the decade starting with the year 1990. First write a query to retrieve all actors that acted in movies during the 1990s, where you return the released date, the movie title, and the collected actor names for the movie. For now do not worry about duplication.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released >= 1990 AND m.released < 2000
+RETURN m.released, m.title, collect(a.name)
+
+// The results returned from the previous query include multiple rows for a movie released value. Next, modify the query so that the released date records returned are not duplicated. To implement this, you must add the collection of the movie titles to the results returned.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released >= 1990 AND m.released < 2000
+RETURN  m.released, collect(m.title), collect(a.name)
+
+// The results returned from the previous query returns the collection of movie titles with duplicates. That is because there are multiple actors per released year. Next, modify the query so that there is no duplication of the movies listed for a year.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released >= 1990 AND m.released < 2000
+RETURN  m.released, collect(DISTINCT m.title), collect(a.name)
+
+// Modify the query that you just wrote to order the results returned so that the more recent years are displayed first.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE m.released >= 1990 AND m.released < 2000
+RETURN  m.released, collect(DISTINCT m.title), collect(a.name)
+ORDER BY m.released DESC
+
+// Retrieve the top 5 ratings and their associated movies, returning the movie title and the rating.
+MATCH (:Person)-[r:REVIEWED]->(m:Movie)
+RETURN  m.title AS movie, r.rating AS rating
+ORDER BY r.rating DESC LIMIT 5
+```
+
 ### Creating Nodes
 
 ### Creating Relationships
