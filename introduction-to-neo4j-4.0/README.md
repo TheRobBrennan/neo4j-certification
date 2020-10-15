@@ -1288,6 +1288,71 @@ SET rel.roles =['Lt. Dan Taylor']
 
 ### Deleting Nodes and Relationships
 
+#### Deleting nodes
+
+```
+// Assuming one or more nodes match
+MATCH (p:Person)
+WHERE p.name = 'Jane Doe'
+DELETE p
+```
+
+You can delete a node provided:
+
+- You can obtain a reference to it (typically using MATCH).
+- The node has no relationships.
+
+So if you accidentally created multiple nodes in the graph, you can retrieve them with a MATCH clause and delete them.
+
+#### Deleting relationships
+
+Provided you have a reference to a relationship, you can delete it:
+
+```
+MATCH (a:Person)-[rel:WROTE | DIRECTED]->(m:Movie)
+WHERE a.name = 'Katie Holmes' AND m.title = 'Batman Begins'
+DELETE rel
+RETURN a, m
+
+// You can confirm that there is only one relationship associated with the Katie Holmes node as follows
+MATCH (a:Person)-[rel]-()
+WHERE a.name = 'Katie Holmes'
+RETURN count(rel) AS `Number of Katie Holmes relationships:`
+```
+
+#### Deleting nodes and relationships
+
+The most efficient way to delete a node and its corresponding relationships is to specify DETACH DELETE. When you specify DETACH DELETE for a node, the relationships to and from the node are deleted, then the node is deleted.
+
+```
+MATCH (p:Person)
+WHERE p.name = 'Liam Neeson'
+DETACH DELETE  p
+```
+
+#### Exercise 11: Deleting nodes and relationships
+
+```
+// Delete the HELPED relationship from the graph.
+MATCH (:Person)-[rel:HELPED]-(:Person)
+DELETE rel
+
+// Query the graph to display Forrest Gump and all of its relationships.
+MATCH (p:Person)-[rel]-(m:Movie)
+WHERE m.title = 'Forrest Gump'
+RETURN p, rel, m
+
+// Try deleting the Forrest Gump node without detaching its relationships. You should receive an error "Cannot delete node<###>, because it still has relationships. To delete this node, you must first delete its relationships."
+MATCH (m:Movie)
+WHERE m.title = 'Forrest Gump'
+DELETE m
+
+// Delete Forrest Gump, along with its relationships in the graph.
+MATCH (m:Movie)
+WHERE m.title = 'Forrest Gump'
+DETACH DELETE m
+```
+
 ### Merging Data in the Graph
 
 ### Defining Constraints for your Data
