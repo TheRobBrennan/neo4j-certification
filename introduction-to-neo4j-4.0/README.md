@@ -1142,6 +1142,150 @@ RETURN m
 
 ### Creating Relationships
 
+#### Syntax: Creating relationships
+
+Here is the simplified syntax for creating a relationship between two nodes referenced by the variables x and y:
+
+```
+CREATE (x)-[:REL_TYPE]->(y)
+```
+
+When you create the relationship, it must have direction. You can query nodes for a relationship in either direction, but you must create the relationship with a direction.
+
+In most cases, unless you are connecting nodes at creation time, you will retrieve the two nodes, each with their own variables, for example, by specifying a WHERE clause to find them, and then use the variables to connect them.
+
+```
+// Connect the actor, Michael Caine with the movie, Batman Begins. We first retrieve the nodes of interest, then we create the relationship
+MATCH (a:Person), (m:Movie)
+WHERE a.name = 'Michael Caine' AND m.title = 'Batman Begins'
+CREATE (a)-[:ACTED_IN]->(m)
+RETURN a, m
+```
+
+Before you run this Cypher code, you may see a warning in Neo4j Browser that you are creating a query that is a cartesian product that could potentially be a performance issue.
+
+If you are familiar with the data in the graph and can be sure that the MATCH clauses will not retrieve large amounts of data, you can continue.
+
+In our case, we are simply looking up a particular Person node and a particular Movie node so we can create the relationship.
+
+#### Creating multiple relationships
+
+Here is an example where we have already created Person nodes for an actor, Liam Neeson, and a producer, Benjamin Melniker. We create two relationships in this example, one for :ACTED_IN and one for :PRODUCED
+
+```
+MATCH (a:Person), (m:Movie), (p:Person)
+WHERE a.name = 'Liam Neeson' AND
+      m.title = 'Batman Begins' AND
+      p.name = 'Benjamin Melniker'
+CREATE (a)-[:ACTED_IN]->(m)<-[:PRODUCED]-(p)
+RETURN a, m, p
+```
+
+When you create relationships based upon a MATCH clause, you must be certain that only a single node is returned for the MATCH, otherwise multiple relationships will be created.
+
+#### Creating a relationship with properties
+
+```
+MATCH (a:Person), (m:Movie)
+WHERE a.name = 'Katie Holmes' AND m.title = 'Batman Begins'
+CREATE (a)-[rel:ACTED_IN {roles: ['Rachel','Rachel Dawes']}->(m)
+RETURN a.name, rel, m.title
+```
+
+#### Creating nodes and relationships together
+
+```
+MATCH (m:Movie)
+WHERE m.title = 'Batman Begins'
+CREATE (a:Person)-[:ACTED_IN]->(m)
+SET a.name = 'Gary Oldman', a.born=1958
+RETURN a, m, p
+```
+
+#### Syntax: Adding properties to relationships
+
+Adding properties to a relationship is the same as our previous look at adding properties to a node. The only difference, of course, is that we must have identified a relationship instead of a node to modify.
+
+```
+MATCH (a:Person), (m:Movie)
+WHERE a.name = 'Christian Bale' AND m.title = 'Batman Begins'
+CREATE (a)-[rel:ACTED_IN]->(m)
+SET rel.roles = ['Bruce Wayne','Batman']
+RETURN a, rel, m
+```
+
+If the relationship had multiple properties, we could have added them as a comma separated list or as an object, like you can do for node properties.
+
+```
+// Example: Adding properties inline
+MATCH (a:Person), (m:Movie)
+WHERE a.name = 'Christian Bale' AND m.title = 'Batman Begins'
+CREATE (a)-[:ACTED_IN {roles: ['Bruce Wayne', 'Batman']}]->(m)
+RETURN a, m
+```
+
+By default, the graph engine will create a relationship between two nodes, even if one already exists. This could be dangerous so in your code make sure that if you use CREATE to create a relationship, it does not already exist.
+
+```
+// Example: Testing before creating relationship
+MATCH (a:Person),(m:Movie)
+WHERE a.name = 'Christian Bale' AND
+      m.title = 'Batman Begins' AND
+      NOT exists((a)-[:ACTED_IN]->(m))
+CREATE (a)-[rel:ACTED_IN]->(m)
+SET rel.roles = ['Bruce Wayne','Batman']
+RETURN a, rel, m
+```
+
+The best way to prevent duplication of relationships is to use the MERGE clause, rather than the CREATE clause. You will learn about merging data later in this course.
+
+#### Removing properties from a relationship
+
+There are two ways that you can remove a property from a node. One way is to use the REMOVE keyword. The other way is to set the property’s value to null, just as you do for properties of nodes.
+
+```
+MATCH (a:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE a.name = 'Christian Bale' AND m.title = 'Batman Begins'
+REMOVE rel.roles    // ALTERNATIVE: SET rel.roles = null
+RETURN a, rel, m
+```
+
+#### Exercise 10: Creating relationships
+
+```
+// Create the ACTED_IN relationship between the actors, Robin Wright, Tom Hanks, and Gary Sinise and the movie, Forrest Gump
+MATCH (m:Movie)
+WHERE m.title = 'Forrest Gump'
+MATCH (p:Person)
+WHERE p.name = 'Tom Hanks' OR p.name = 'Robin Wright' OR p.name = 'Gary Sinise'
+CREATE (p)-[:ACTED_IN]->(m)
+
+// Return all people connected to the movie, Forrest Gump, along with their relationships.
+MATCH (p:Person)-[rel]-(m:Movie)
+WHERE m.title = 'Forrest Gump'
+RETURN p, rel, m
+
+// Add the roles property to the three ACTED_IN relationships that you just created to the movie, Forrest Gump using this information: Tom Hanks played the role, Forrest Gump. Robin Wright played the role, Jenny Curran. Gary Sinise played the role, Lieutenant Dan Taylor.
+MATCH (p:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE m.title = 'Forrest Gump'
+SET rel.roles =
+CASE p.name
+  WHEN 'Tom Hanks' THEN ['Forrest Gump']
+  WHEN 'Robin Wright' THEN ['Jenny Curran']
+  WHEN 'Gary Sinise' THEN ['Lieutenant Dan Taylor']
+END
+
+// Add a new property, research to the HELPED relationship between Tom Hanks and Gary Sinise and set this property’s value to war history.
+MATCH (p1:Person)-[rel:HELPED]->(p2:Person)
+WHERE p1.name = 'Tom Hanks' AND p2.name = 'Gary Sinise'
+SET rel.research = 'war history'
+
+// Modify the role that Gary Sinise played in the movie, Forrest Gump from Lieutenant Dan Taylor to Lt. Dan Taylor
+MATCH (p:Person)-[rel:ACTED_IN]->(m:Movie)
+WHERE m.title = 'Forrest Gump' AND p.name = 'Gary Sinise'
+SET rel.roles =['Lt. Dan Taylor']
+```
+
 ### Deleting Nodes and Relationships
 
 ### Merging Data in the Graph
