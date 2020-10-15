@@ -960,6 +960,186 @@ ORDER BY r.rating DESC LIMIT 5
 
 ### Creating Nodes
 
+#### Syntax: Creating nodes
+
+```
+// Add a node to the graph of type Movie with the title, Batman Begins
+CREATE (:Movie {title: 'Batman Begins'})
+
+// Add a node with two labels to the graph of types Movie and Action with the title, Batman Begins.
+CREATE (:Movie:Action {title: 'Batman Begins'})
+
+// Add a node to the graph of types Movie and Action with the title, Batman Begins
+CREATE (m:Movie:Action {title: 'Batman Begins'})
+
+// Add a node to the graph of types Movie and Action with the title Batman Begins and return the title
+CREATE (m:Movie:Action {title: ' Batman Begins'})
+RETURN m.title
+
+```
+
+#### Creating multiple nodes
+
+You can create multiple nodes by simply separating the nodes specified with commas, or by specifying multiple CREATE statements.
+
+```
+// Create some Person nodes that will represent some of the people associated with the movie Batman Begins
+CREATE
+(:Person {name: 'Michael Caine', born: 1933}),
+(:Person {name: 'Liam Neeson', born: 1952}),
+(:Person {name: 'Katie Holmes', born: 1978}),
+(:Person {name: 'Benjamin Melniker', born: 1913})
+```
+
+The graph engine will create a node with the same properties of a node that already exists. You can prevent this from happening in one of two ways:
+
+- You can use MERGE rather than CREATE when creating the node.
+- You can add constraints to your graph.
+
+#### Syntax: Adding labels to a node
+
+```
+// Example: Adding labels to a node
+MATCH (m:Movie)
+WHERE m.title = 'Batman Begins'
+SET m:Fantasy       // To set multiple labels for variable m -> SET m:Fantasy:Label2
+RETURN labels(m)    // Note we are using the built-in labels() function here
+```
+
+#### Syntax: Removing labels from a node
+
+If you attempt to remove a label from a node for which the label does not exist, it is ignored.
+
+```
+// Example: Removing labels from a node
+MATCH (m:Action)
+REMOVE m:Action, m:Fantasy
+RETURN labels(m)
+```
+
+#### Syntax: Adding properties to a node
+
+Here are simplified syntax examples for adding properties to a node referenced by the variable x:
+
+```
+// Set a single property
+SET x.propertyName = value
+
+// Set multiple properties
+SET x.propertyName1 = value1, x.propertyName2 = value2
+
+// Replace all properties of the node with these properties
+SET x = {propertyName1: value1, propertyName2: value2}
+
+// Update and/or create these new properties for the selected node
+SET x += {propertyName1: value1, propertyName2: value2}
+```
+
+If the property does not exist, it is added to the node. If the property exists, its value is updated. If the value specified is null, the property is removed.
+
+```
+// Example: Adding properties to a node
+MATCH (m:Movie)
+WHERE m.title = 'Batman Begins'
+SET m.released = 2005, m.lengthInMinutes = 140
+RETURN m
+
+// Example 2: Adding properties to node
+MATCH (m:Movie)
+WHERE m.title = 'Batman Begins'
+SET  m = {title: 'Batman Begins',
+          released: 2005,
+          lengthInMinutes: 140,
+          videoFormat: 'DVD',
+          grossMillions: 206.5}
+RETURN m
+```
+
+#### Retrieving properties of a node
+
+```
+MATCH (m:Movie)
+WHERE m.title = 'Batman Begins'
+RETURN properties(m)
+```
+
+#### Updating properties – JSON-style
+
+Here is an example where we use the JSON-style object to add the awards property to the node and update the grossMillions property:
+
+```
+MATCH (m:Movie)
+WHERE m.title = 'Batman Begins'
+SET  m += { grossMillions: 300,
+            awards: 66}
+RETURN m
+```
+
+#### Syntax: Removing properties from a node
+
+There are two ways that you can remove a property from a node. One way is to use the REMOVE keyword. The other way is to set the property’s value to null:
+
+```
+REMOVE x.propertyName
+SET x.propertyName = null
+
+// Example: Removing properties from a node using both techniques
+MATCH (m:Movie)
+WHERE m.title = 'Batman Begins'
+SET m.grossMillions = null
+REMOVE m.videoFormat
+RETURN m
+```
+
+#### Exercise 9: Creating nodes
+
+```
+// Create a Movie node for the movie with the title, Forrest Gump
+CREATE (:Movie {title: 'Forrest Gump'})
+
+// Create a Person node for the person with the name, Robin Wright
+CREATE (:Person {name: 'Robin Wright'})
+
+// Add the label OlderMovie to any Movie node that was released before 2010
+MATCH (m:Movie)
+WHERE m.released < 2010
+SET m:OlderMovie
+RETURN DISTINCT labels(m)
+
+// Retrieve all older movie nodes to test that the label was indeed added to these nodes.
+MATCH (m:OlderMovie)
+RETURN m.title, m.released
+
+// Add the label Female to all Person nodes that has a person whose name starts with Robin
+MATCH (p:Person)
+WHERE p.name STARTS WITH 'Robin'
+SET p:Female
+
+// Retrieve all Female nodes. Do you notice that not all of these nodes should be labeled Female?
+MATCH (p:Female)
+RETURN p.name
+
+// We’ve decided to not use the Female label. Remove the Female label from the nodes that have this label.
+MATCH (p:Female)
+REMOVE p:Female
+
+// View the current schema of the graph.
+CALL db.schema.visualization()
+
+// Add properties to a movie
+MATCH (m:Movie)
+WHERE m.title = 'Forrest Gump'
+SET m:OlderMovie,
+    m.released = 1994,
+    m.tagline = "Life is like a box of chocolates...you never know what you're gonna get.",
+    m.lengthInMinutes = 142
+
+// Retrieve this OlderMovie node to confirm that the properties and label have been properly set
+MATCH (m:OlderMovie)
+WHERE m.title = 'Forrest Gump'
+RETURN m
+```
+
 ### Creating Relationships
 
 ### Deleting Nodes and Relationships
