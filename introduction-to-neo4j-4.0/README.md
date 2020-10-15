@@ -543,6 +543,169 @@ RETURN p.name, m.title
 
 ### Working with Cypher Data
 
+#### Using count() to aggregate
+
+A common way to aggregate data in Cypher is to count. Cypher has a `count()` function that you can use to perform a count of nodes, relationships, paths, rows during query processing. When you aggregate in a Cypher query, this means that the query must process all patterns in the MATCH clause to complete the aggregation to either return results or perform the next part of the query.
+
+```
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(d:Person)
+RETURN a.name, d.name, count(m)
+```
+
+Aggregation in Cypher is different from aggregation in SQL. In Cypher, you need not specify a grouping key.
+
+#### Collecting results
+
+Cypher has a built-in function, collect() that enables you to aggregate a value into a list. The value can be a property value, a node, a relationship, or a path.
+
+```
+// Collect the list of movie titles that Tom Cruise acted in
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name ='Tom Cruise'
+RETURN collect(m.title) AS `movies for Tom Cruise`
+```
+
+#### Collecting nodes
+
+```
+// Collect the nodes for movie titles that Tom Cruise acted in
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name ='Tom Cruise'
+RETURN collect(m) AS `movies for Tom Cruise`
+```
+
+#### Counting and collecting
+
+The Cypher `count()` function is very useful when you want to count the number of occurrences of a particular query result. If you specify `count(n)`, the graph engine calculates the number of occurrences of _n_. If you specify count(\*), the graph engine calculates the number of rows retrieved, including those with null values. When you use `count()`, the graph engine does an implicit “group by” based upon the aggregation.
+
+```
+// Count the paths retrieved where an actor and director collaborated in a movie and the count() function is used to count the number of paths found for each actor/director collaboration
+MATCH (actor:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(director:Person)
+RETURN actor.name, director.name,
+       count(m) AS collaborations, collect(m.title) AS movies
+```
+
+Here is an alternative to using `count()` that returns the same results, but with using `size()`:
+
+```
+MATCH (actor:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(director:Person)
+RETURN actor.name, director.name, size(collect(m)) AS collaborations,
+       collect(m.title) AS movies
+```
+
+#### Lists
+
+```
+// Return the cast list for every movie, as well as the size of the cast
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+RETURN m.title, collect(a) as cast, size(collect(a)) as castSize
+```
+
+Notice that when viewing nodes in table view, each node is shown with {} notation and key value pairs. This structure is called a map in Cypher.
+
+```
+// We can adjust this query slightly so that the list contains the names, rather than the entire set of Person node properties.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+RETURN m.title, collect(a.name) as cast, size(collect(a.name)) as castSize
+
+// Return the first cast member for each movie
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+RETURN m.title, collect(a.name)[0] as `A cast member`,
+       size(collect(a.name)) as castSize
+```
+
+#### Working with maps
+
+A Cypher map is list of key/value pairs where each element of the list is of the format ‘key’: value. For example, a map of months and the number of days per month could be:
+
+```
+RETURN {Jan: 31, Feb: 28, Mar: 31, Apr: 30 , May: 31, Jun: 30 ,
+       Jul: 31, Aug: 31, Sep: 30, Oct: 31, Nov: 30, Dec: 31}['Feb'] AS DaysInFeb
+```
+
+#### Map projections
+
+Map projections are when you can use retrieved nodes to create or return some of the information in the nodes. A Movie node can have the properties title, released, and tagline. Suppose we want to return the Movie node information, but without the tagline property? You can do so as follows using map projections:
+
+```
+MATCH (m:Movie)
+WHERE m.title CONTAINS 'Matrix'
+RETURN m { .title, .released } AS movie
+```
+
+#### Working with dates
+
+```
+RETURN date(), datetime(), time(), timestamp();
+
+// Since both date() and datetime() store their values as strings, you can use properties such as day, year, time to extract the values that you need
+RETURN date().day, date().year, datetime().year, datetime().hour,
+       datetime().minute;
+```
+
+#### Working with timestamp()
+
+Working with timestamp() is different as its value is a long integer that represents time. The value of datetime().epochmillis is the same as timestamp(). To extract a month, year, or time from a timestamp, you would do the following:
+
+```
+RETURN datetime({epochmillis:timestamp()}).day,
+       datetime({epochmillis:timestamp()}).year,
+       datetime({epochmillis:timestamp()}).month
+```
+
+#### Exercise 6: Working with Cypher data
+
+```
+// Retrieve actors and the movies they have acted in, returning each actor’s name and the list of movies they acted in
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+RETURN p.name as actor, collect(m.title) AS `movie list`
+
+// Retrieve all movies that Tom Cruise has acted in and the co-actors that acted in the same movie, returning the movie title and the list of co-actors that Tom Cruise worked with
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)<-[:ACTED_IN]-(p2:Person)
+WHERE p.name ='Tom Cruise'
+RETURN m.title as movie, collect(p2.name) AS `co-actors`
+
+// Retrieve all people who reviewed a movie, returning the list of reviewers and how many reviewers reviewed the movie
+MATCH (p:Person)-[:REVIEWED]->(m:Movie)
+RETURN m.title as movie, count(p) as numReviews, collect(p.name) as reviewers
+
+// Retrieve all directors, their movies, and people who acted in the movies, returning the name of the director, the number of actors the director has worked with, and the list of actors.
+MATCH (d:Person)-[:DIRECTED]->(m:Movie)<-[:ACTED_IN]-(a:Person)
+RETURN d.name AS director, count(a) AS `number actors` , collect(a.name) AS `actors worked with`
+
+// Write a query that returns a map of all movies that Tom Hanks acted in. The map returned only contains the title of the movie and the year released for the movie.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE a.name = 'Tom Hanks'
+RETURN  m {.title, .released}
+
+// Write a query that retrieves all movies that Tom Hanks acted in, returning the title of the movie, the year the movie was released, the number of years ago that the movie was released, and the age of Tom when the movie was released.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)
+WHERE a.name = 'Tom Hanks'
+RETURN  m.title, m.released, date().year  - m.released as yearsAgoReleased, m.released  - a.born AS `age of Tom`
+```
+
+#### Check your understanding
+
+What functions below aggregate results?
+
+[X] count()
+
+[] size()
+
+[] map()
+
+[X] collect()
+
+What construct best represents a node in the graph?
+
+[] list
+
+[X] map
+
+[] collection
+
+[] blob
+
 ### Controlling the Query Chain
 
 ### Controlling Results Returned
