@@ -391,6 +391,156 @@ RETURN  m.title as Movie, a.name as Actor
 
 ### Working with Patterns
 
+#### Traversal in a MATCH clause
+
+```
+// Find all of the followers of people who reviewed the movie, The Replacements
+MATCH (follower:Person)-[:FOLLOWS]->(reviewer:Person)-[:REVIEWED]->(m:Movie)
+WHERE m.title = 'The Replacements'
+RETURN follower.name, reviewer.name
+```
+
+Here is the traversal that the graph engine performed. It first found the movie, The Replacements. Then it found all Person nodes that reviewed that movie, Angela, Jessica, and James. Then it found all Person nodes who follow the people who reviewed the movie, Paul, Angela, and James. In all, six relationships were traversed.
+
+![https://s3.amazonaws.com/dev.assets.neo4j.com/course/4.0-intro-neo4j/images/TheReplacementsTraversal.png](https://s3.amazonaws.com/dev.assets.neo4j.com/course/4.0-intro-neo4j/images/TheReplacementsTraversal.png)
+
+#### Specifying multiple patterns in a MATCH
+
+Suppose we want to write queries that focus on movies released in the year 2000:
+
+```
+// Returns Person nodes for people who acted in these three movies from 2000 and using that same movie node,m it retrieves the Person node who is the director for that movie, m
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie),
+      (m)<-[:DIRECTED]-(d:Person)
+WHERE m.released = 2000
+RETURN a.name, m.title, d.name
+
+// However, a better way to write this same query would be
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(d:Person)
+WHERE m.released = 2000
+RETURN a.name, m.title, d.name
+```
+
+#### Example: Using two patterns in a MATCH
+
+In the first example, we want the actors that worked with Keanu Reeves to meet Hugo Weaving, who has worked with Keanu Reeves. Here we retrieve the actors who acted in the same movies as Keanu Reeves, but not when Hugo Weaving acted in the same movie. To do this, we specify two paths for the MATCH:
+
+```
+MATCH (keanu:Person)-[:ACTED_IN]->(movie:Movie)<-[:ACTED_IN]-(n:Person),
+     (hugo:Person)
+WHERE keanu.name='Keanu Reeves' AND
+      hugo.name='Hugo Weaving'
+AND NOT (hugo)-[:ACTED_IN]->(movie)
+RETURN n.name
+```
+
+Here is another example where two patterns are necessary.
+
+Suppose we want to retrieve the movies that Meg Ryan acted in and their respective directors, as well as the other actors that acted in these movies. Here is the query to do this:
+
+```
+MATCH (meg:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(d:Person),
+      (other:Person)-[:ACTED_IN]->(m)
+WHERE meg.name = 'Meg Ryan'
+RETURN m.title as movie, d.name AS director , other.name AS `co-actors`
+```
+
+#### Specifying varying length paths
+
+Any graph that represents social networking, trees, or hierarchies will most likely have multiple paths of varying lengths. Think of the connected relationship in LinkedIn and how connections are made by people connected to more people.
+
+```
+// Find all of the followers of the followers of a Person by specifying a numeric value for the number of hops in the path. Here is an example where we want to retrieve all Person nodes that are exactly two hops away
+MATCH (follower:Person)-[:FOLLOWS*2]->(p:Person)
+RETURN follower.name AS `Follower of a follower of`, p.name AS `Person`
+```
+
+If we had specified [:FOLLOWS*] rather than [:FOLLOWS*2], the query would return all Person nodes that are in the :FOLLOWS path from Paul Blythe:
+
+```
+MATCH (follower:Person)-[:FOLLOWS]->(p:Person) RETURN follower.name AS `Follower of`, p.name AS `Person`
+
+Person	          Follower of Person
+"Paul Blythe"	    "Angela Scope"
+"James Thompson"	"Jessica Thompson"
+"Angela Scope"	  "Jessica Thompson"
+```
+
+#### Finding the shortest path
+
+A built-in function that you may find useful in a graph that has many ways of traversing the graph to get to the same node is the `shortestPath()` function. Using the shortest path between two nodes improves the performance of the query.
+
+```
+// Discover the shortest path between the movies The Matrix and A Few Good Men. Notice that we specify `*` for the relationship. This means any relationship; for the traversal.
+MATCH p = shortestPath((m1:Movie)-[*]-(m2:Movie))
+WHERE m1.title = 'A Few Good Men' AND
+      m2.title = 'The Matrix'
+RETURN  p
+```
+
+#### Returning a subgraph
+
+In using `shortestPath()`, the return type is a path. A subgraph is essentially as set of paths derived from your MATCH clause.
+
+```
+MATCH paths = (m:Movie)-[rel]-(p:Person)
+WHERE m.title = 'The Replacements'
+RETURN paths
+```
+
+The APOC library is very useful if you want to query the graph to obtain subgraphs.
+
+#### Specifying optional pattern matching
+
+`OPTIONAL MATCH` matches patterns with your graph, just like `MATCH` does. The difference is that if no matches are found, `OPTIONAL MATCH` will use nulls for missing parts of the pattern. `OPTIONAL MATCH` could be considered the Cypher equivalent of the outer join in SQL.
+
+```
+// Here is an example where we query the graph for all people whose name starts with James. The OPTIONAL MATCH is specified to include people who have reviewed movies
+MATCH (p:Person)
+WHERE p.name STARTS WITH 'James'
+OPTIONAL MATCH (p)-[r:REVIEWED]->(m:Movie)
+RETURN p.name, type(r), m.title
+```
+
+Notice that for all rows that do not have the `:REVIEWED` relationship, a `null` value is returned for the movie part of the query, as well as the relationship.
+
+#### Exercise 5: Working with patterns in queries
+
+```
+// Write a Cypher query that retrieves all movies that Gene Hackman has acted in, along with the directors of the movies. In addition, retrieve the actors that acted in the same movies as Gene Hackman. Return the name of the movie, the name of the director, and the names of actors that worked with Gene Hackman.
+MATCH (a:Person)-[:ACTED_IN]->(m:Movie)<-[:DIRECTED]-(d:Person),
+      (a2:Person)-[:ACTED_IN]->(m)
+WHERE a.name = 'Gene Hackman'
+RETURN m.title as movie, d.name AS director , a2.name AS `co-actors`
+
+// Retrieve all nodes that the person named James Thompson directly has the FOLLOWS relationship in either direction.
+MATCH (p1:Person)-[:FOLLOWS]-(p2:Person)
+WHERE p1.name = 'James Thompson'
+RETURN p1, p2
+
+// Modify the query to retrieve nodes that are exactly three hops away.
+// Notice here that the relationships between the nodes are not displayed because James Thompson is not connected to Paul Blythe.
+MATCH (p1:Person)-[:FOLLOWS*3]-(p2:Person)
+WHERE p1.name = 'James Thompson'
+RETURN p1, p2
+
+// Modify the query to retrieve nodes that are one and two hops away.
+MATCH (p1:Person)-[:FOLLOWS*1..2]-(p2:Person)
+WHERE p1.name = 'James Thompson'
+RETURN p1, p2
+
+// Modify the query to retrieve all nodes that are connected to James Thompson by a Follows relationship no matter how many hops are required.
+MATCH (p1:Person)-[:FOLLOWS*]-(p2:Person)
+WHERE p1.name = 'James Thompson'
+RETURN p1, p2
+
+// Write a Cypher query to retrieve all people in the graph whose name begins with Tom and optionally retrieve all people named Tom who directed a movie.
+MATCH (p:Person)
+WHERE p.name STARTS WITH 'Tom'
+OPTIONAL MATCH (p)-[:DIRECTED]->(m:Movie)
+RETURN p.name, m.title
+```
+
 ### Working with Cypher Data
 
 ### Controlling the Query Chain
