@@ -1822,6 +1822,163 @@ A composite index does not enforce uniqueness.
 
 ### Using Query Best Practices
 
+#### Using Cypher parameters
+
+In your Cypher statements, a parameter name begins with the `$` symbol.
+
+Here is an example where we have parameterized the query:
+
+```
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name = $actorName
+RETURN m.released, m.title ORDER BY m.released DESC
+```
+
+At runtime, if the parameter `$actorName` has a value, it will be used in the Cypher statement when it runs in the graph engine.
+
+#### Setting a parameter
+
+You can set values for Cypher parameters that will be in effect during your session.
+
+You can set the value of a single parameter in the query editor pane as shown in this example where the value Tom Hanks is set for the parameter `actorName`:
+
+```
+:param actorName => 'Tom Hanks'
+```
+
+You can even specify a Cypher expression to the right of `=>` to set the value of the parameter.
+
+#### Using the parameter
+
+After the actorName parameter is set, you can run the query that uses the parameter.
+
+Subsequently, you need only change the value of the parameter and not the Cypher statement to test with different values.
+
+#### Setting multiple parameters
+
+You can also use the JSON-style syntax to set all of the parameters in your Neo4j Browser session. The values you can specify in this object are numbers, strings, and booleans. In this example we set two parameters for our session:
+
+```
+:params {actorName: 'Tom Cruise', movieName: 'Top Gun'}
+```
+
+#### Using multiple parameters
+
+Here is a different query that uses both of these parameters:
+
+```
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name = $actorName AND m.title = $movieName
+RETURN p, m
+```
+
+If you want to remove an existing parameter from your session, you do so by using the JSON-style syntax and exclude the parameter for your session.
+
+If you want to clear all parameters, you can simply type:
+
+```
+:params {}
+```
+
+#### Viewing parameters
+
+If you want to view the current parameters and their values, simply type `:params`
+
+#### Analyzing queries
+
+There are two Cypher keywords you can prefix a Cypher statement with to analyze a query:
+
+- `EXPLAIN` provides estimates of the graph engine processing that will occur, but does not execute the Cypher statement.
+- `PROFILE` provides real profiling information for what has occurred in the graph engine during the query and executes the Cypher statement.
+
+#### Using EXPLAIN
+
+The `EXPLAIN` keyword provides the Cypher query plan. A Cypher query plan has operations where rows are processed and passed on to the the next operation (step). You can compare different Cypher statements to understand the stages of processing that will occur when the Cypher executes.
+
+##### Example: Using EXPLAIN
+
+```
+// Set the parameters
+:params {actorName: 'Hugo Weaving', year: 2000}
+
+// With EXPLAIN, the query does not run, the graph engine simply produces the query plan.
+EXPLAIN MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name = $actorName AND
+      m.released <  $year
+RETURN p.name, m.title, m.released
+```
+
+##### Example: Using PROFILE
+
+Here we see that for each phase of the graph engine processing, we can view the cache hits and most importantly the number of times the graph engine accessed the database (db hits). This is an important metric that will affect the performance of the Cypher statement at run-time. The overall execution milliseconds, however is the measurement that you typically use for query tuning. The elapsed milliseconds is affected, not only by your query, but also whether the caches are populated.
+
+```
+// Set the parameters
+:params {actorName: 'Hugo Weaving', year: 2000}
+
+// With PROFILE, the query runs and we can see cache hits and database hits
+PROFILE MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name = $actorName AND
+      m.released <  $year
+RETURN p.name, m.title, m.released
+```
+
+#### Monitoring queries
+
+If you are testing an application and have run several queries against the graph, there may be times when your session hangs with what seems to be a very long-running query.
+
+There are two reasons why a Cypher query may take a long time:
+
+- The query returns a lot of data. The query completes execution in the graph engine, but it takes a long time to create the result stream.
+
+      Example A: MATCH (a)--(b)--(c)--(d)--(e)--(f)--(g) RETURN a
+
+- The query takes a long time to execute in the graph engine.
+
+      Example B: MATCH (a), (b), (c), (d), (e) RETURN count(id(a))
+
+##### Example: Monitoring queries
+
+You might want to understand whether the query is taking a long time or whether the query has completed, but it is returning a lot of results.
+
+You can monitor it by using the `:queries` command. Here is a screenshot where we are monitoring a long-running (Example A) query in another Neo4j Browser session:
+
+The `:queries` command calls `dbms.listQueries()` under the hood, which is why we see two queries here.
+
+#### Cypher query best practices
+
+Here is a very high-level list of some of the best practices you should aim for in your Cypher queries:
+
+- Create and use indexes effectively.
+- Use parameters rather than literals in your queries.
+- Specify node labels in `MATCH` clauses.
+- Reduce the number of rows passed processed.
+- Aggregate early in the query, rather than in the `RETURN` clause, if possible.
+- Use `DISTINCT` and `LIMIT` early in the query to reduce the number of rows processed.
+- Defer property access until you really need it.
+
+Many of these guidelines are covered in the course, Advanced Cypher.
+
+#### Exercise 15: Using query best practices
+
+```
+// Add a parameter named year to your session with a value of 2000.
+:param year => 2000
+
+// Add a parameter named ratingValue to your session with a value of 65.
+:params {year: 2006, ratingValue: 65}
+```
+
+#### Check your understanding
+
+Suppose you are executing queries in Neo4j Browser Session A and monitoring them in Neo4j Browser Session B with the :queries command. What are some ways that you can kill a query?
+Select the correct answers.
+
+[X] You can close the result pane in Session A, if the query can be seen in Session B.
+[] You can close the result pane in Session A, if the query can no longer be seen in Session B.
+[X] You can kill any running query seen in Session B.
+[X] You can close the Neo4j Browser that is running Session A.
+
 ### Overview of Importing Data into Neo4j
 
 ### Using LOAD CSV for Import
