@@ -1671,6 +1671,155 @@ Select the correct answers.
 
 ### Using Indexes
 
+#### Indexes in Neo4j
+
+The uniqueness and node key constraints that you add to a graph are essentially single-property and composite indexes respectively. Indexes are used to improve initial node lookup performance, but they require additional storage in the graph to maintain and also add to the cost of creating or modifying property values that are indexed. Indexes store redundant data that points to nodes with the specific property value or values. **Unlike SQL, there is no such thing as a primary key in Neo4j**. You can have multiple properties on nodes that must be unique.
+
+Single-property indexes are used for:
+
+- Equality checks =
+- Range comparisons >,>=,<, <=
+- List membership IN
+- String comparisons STARTS WITH, ENDS WITH, CONTAINS
+- Existence checks exists()
+- Spatial distance searches distance()
+- Spatial bounding searches point()
+
+Composite indexes are used only for equality checks and list membership.
+
+In this course, we introduce the basics of Neo4j b-tree indexes, but you should consult the Neo4j Operations Manual for more details about creating and maintaining indexes.
+
+Because index maintenance incurs additional overhead when nodes are created, Neo4j recommends that for large graphs, indexes are created after the data has been loaded into the graph.
+
+#### Indexes for range searches
+
+When you add an index for a property of a node, it can greatly reduce the number of nodes the graph engine needs to visit in order to satisfy a query.
+
+If there is an index on the released property, the graph engine will find the pointers to all nodes that satisfy the query without having to visit all of the nodes:
+![https://s3.amazonaws.com/dev.assets.neo4j.com/course/4.0-intro-neo4j/images/IndexForRanges.png](https://s3.amazonaws.com/dev.assets.neo4j.com/course/4.0-intro-neo4j/images/IndexForRanges.png)
+
+#### Creating a single-property index
+
+A uniqueness constraint on a property is an index so you need not create an index for any properties you have created uniqueness constraints for. An index on its own does not guarantee uniqueness.
+
+```
+CREATE INDEX MovieReleased FOR (m:Movie) ON (m.released)
+```
+
+#### Creating composite indexes
+
+If a set of properties for a node must be unique for every node, then you should create a constraint as a node key, rather than an index.
+
+If, however, there can be duplication for a set of property values, but you want faster access to them, then you can create a composite index. A composite index is based upon multiple properties for a node.
+
+##### Example: Creating a composite index
+
+```
+CREATE INDEX MovieReleasedVideoFormat FOR (m:Movie) ON (m.released, m.videoFormat)
+```
+
+#### Creating full-text schema indexes
+
+A full-text schema index is based upon string values only, but they provide additional search capabilities that you do not get from property indexes. A full-text schema index can be used for:
+
+- Node or relationship properties.
+- Single property or multiple properties.
+- Single or multiple types of nodes (labels).
+- Single or multiple types of relationships.
+
+Rather than using Cypher syntax to create a full-text schema index, you call a procedure to create the index. The index is not used implicitly when you query the graph. You must call a procedure to start a query that uses the index.
+
+**By default, the underlying implementation of a full-text schema index is Lucene.** You can change the underlying index provider of any index.
+
+##### Example: Creating a full-text schema index
+
+Here is an example where we create a full-text schema index on data in title property of Movie nodes and data in the name property of Person nodes:
+
+```
+CALL db.index.fulltext.createNodeIndex(
+      'MovieTitlePersonName',['Movie', 'Person'], ['title', 'name'])
+```
+
+Just as you can create a full-text schema index on properties of nodes, you can create a full-text schema index on properties of relationships. To do this you use `CALL db.indexfulltext.createRelationshipIndex()`.
+
+#### Retrieving configured indexes
+
+```
+CALL db.indexes()
+```
+
+#### Using a full-text schema index
+
+To use a full-text schema index, you must call the query procedure that uses the index.
+
+```
+CALL db.index.fulltext.queryNodes(
+     'MovieTitlePersonName', 'Jerry') YIELD node
+RETURN node
+```
+
+Notice that we specify `YIELD` after calling the procedure. This enables us to use return values from the procedure. In this case, we return all nodes that are found in the graph that have either a title property or name property containing the string, Jerry.
+
+#### Retrieving the score for a full-text search
+
+When a full-text schema index is used, it calculates a “hit score” that represents the closeness of the values in the graph to the query string:
+
+```
+CALL db.index.fulltext.queryNodes(
+     'MovieTitlePersonName', 'Matrix') YIELD node, score
+RETURN node.title, score
+```
+
+##### Example: Searching on a particular property
+
+With full-text indexes created, you can also specify which property you want to search for. Here is an example where we are looking for Jerry, but only as a name property of a Person node:
+
+```
+CALL db.index.fulltext.queryNodes(
+     'MovieTitlePersonName', 'name: Jerry') YIELD node
+RETURN node
+```
+
+#### Dropping an index
+
+```
+DROP INDEX MovieReleasedVideoFormat
+```
+
+#### Dropping a full-text schema index
+
+```
+CALL db.index.fulltext.drop('MovieTitlePersonName')
+```
+
+#### Exercise 14: Creating indexes
+
+```
+// Create a single-property index on the born property of a Person node naming the index PersonBornIndex.
+CREATE INDEX PersonBornIndex FOR (p:Person) ON (p.born)
+
+// Create a full-text schema index for the tagline property of the Movie nodes named MovieTaglineFTIndex.
+CALL db.index.fulltext.createNodeIndex('MovieTaglineFTIndex',['Movie'], ['tagline'])
+
+// Write and execute a query to find all movies with taglines that contain the strings "real" or "world"
+CALL db.index.fulltext.queryNodes('MovieTaglineFTIndex', 'real OR world')
+      YIELD node
+RETURN node.title, node.tagline
+
+// Add score to the YIELD clause and return it to see what score the search produces
+CALL db.index.fulltext.queryNodes('MovieTaglineFTIndex', 'real OR world')
+      YIELD node, score
+RETURN node.title, score, node.tagline
+
+// Drop the full-text schema index you just created.
+CALL db.index.fulltext.drop('MovieTaglineFTIndex')
+```
+
+#### Check your understanding
+
+What is the difference between a node key and a composite index?
+A composite index does not enforce uniqueness.
+
 ### Using Query Best Practices
 
 ### Overview of Importing Data into Neo4j
