@@ -1542,6 +1542,133 @@ Select the correct answers.
 
 ### Defining Constraints for your Data
 
+#### Uniqueness and existence in the graph
+
+Unfortunately, you cannot prevent duplication by checking the existence of the exact node (with properties) as this type of test is not cluster or multi-thread safe as no locks are used. This is one reason why MERGE is preferred over CREATE, because MERGE does use locks.
+
+A third scenario with graph data is where you want to ensure that a set of property values for nodes of the same type, have a unique value. This is the same thing as a primary key in a relational database.
+
+In Neo4j, you can use Cypher to:
+
+- Add a uniqueness constraint that ensures that a value for a property is unique for all nodes of that type.
+- Add an existence constraint that ensures that when a node or relationship is created or modified, it must have certain properties set.
+- Add a node key that ensures that a set of values for properties of a node of a given type is unique.
+
+#### Ensuring that a property value for a node is unique
+
+Here is an example for ensuring that the title for a node of type Movie is unique:
+
+```
+CREATE CONSTRAINT UniqueMovieTitleConstraint ON (m:Movie) ASSERT m.title IS UNIQUE
+```
+
+Although the name of the constraint, `UniqueMovieTitleConstraint` is optional, Neo4j recommends that you name it. Otherwise, it will be given an auto-generated name.
+
+Note that you can create a uniqueness constraint, even if some Movie nodes do not have a title property.
+
+##### Example: Uniqueness at runtime
+
+In addition, if you attempt to modify the value of a property where the uniqueness assertion fails, the property will not be updated.
+
+#### Ensuring that properties exist
+
+Here is an example for adding the existence constraint to the tagline property of all Movie nodes in the graph:
+
+```
+CREATE CONSTRAINT ExistsMovieTagline ON (m:Movie) ASSERT exists(m.tagline)
+```
+
+Note that if at least one node exists that violates this constraint, it cannot be added to the graph because a node has been detected that violates the constraint.
+
+##### Example: Adding the existence constraint
+
+We know that in the Movie graph, all :REVIEWED relationships currently have a property, rating. We can create an existence constraint on that property as follows:
+
+```
+CREATE CONSTRAINT ExistsREVIEWEDRating
+       ON ()-[rel:REVIEWED]-() ASSERT exists(rel.rating)
+```
+
+Note that we cannot remove a property from a node or relationship if it would violate any of our defined constraints.
+
+#### Retrieving constraints defined for the graph
+
+You can query for the set of constraints defined in the graph as follows:
+
+```
+CALL db.constraints()
+```
+
+#### Dropping constraints
+
+You remove constraints defined for the graph with the DROP CONSTRAINT clause:
+
+```
+DROP CONSTRAINT ExistsREVIEWEDRating
+```
+
+#### Creating multi-property uniqueness/existence constraint: node key
+
+A node key is used to define the uniqueness and existence constraint for multiple properties of a node of a certain type. A node key is also used as a composite index in the graph.
+
+Suppose that in our Movie graph, we will not allow a Person node to be created where both the name and born properties are the same. We can create a constraint that will be a node key to ensure that this uniqueness for the set of properties is asserted.
+
+Here is an example to create this node key:
+
+```
+CREATE CONSTRAINT UniqueNameBornConstraint
+       ON (p:Person) ASSERT (p.name, p.born) IS NODE KEY
+```
+
+Note that this attempt to create the constraint will fail if there are Person nodes in the graph that do not have either the name or born properties defined.
+
+##### Cleaning up the graph to support constraint
+
+If we set these properties for all nodes in the graph that do not have born properties with:
+
+```
+MATCH (p:Person)
+WHERE NOT exists(p.born)
+SET p.born = 0
+```
+
+#### Exercise 13: Defining constraints on your data
+
+```
+// Add a uniqueness constraint named PersonNameUniqueConstraint to the Person nodes in the graph.
+CREATE CONSTRAINT PersonNameUniqueConstraint ON (p:Person) ASSERT p.name IS UNIQUE
+
+// Suppose we want to ensure that the graph will never contain a movie with the same title and the same year. For example, the movie studio decides to release a movie with the title, Back to the Future in 2018. There already is a movie in the graph with this title that was released in 1985. We want to allow this. To implement this type of constraint on the graph, you must add a constraint as a node key since it uses two properties of the node.
+DROP CONSTRAINT MovieTitleConstraint
+CREATE CONSTRAINT MovieTitleReleasedConstraint ON (m:Movie) ASSERT (m.title, m.released) IS NODE KEY
+```
+
+#### Check your understanding
+
+Question 1 - What are some of the constraints you can create for the data in your graph?
+Select the correct answers.
+
+[] Property for a node with a given label is always a string value.
+[X] Property value for a node with a given label is unique.
+[X] Property for a node with a given label must exist.
+[] Property value for a relationship is unique.
+
+Question 2 - What types of uniqueness constraints can you define for a graph?
+Select the correct answers.
+
+[X] Unique values for a property of a node
+[] Unique values for a property of a relationship
+[X] Unique values for a set of properties of a node
+[] Unique values for a set of properties of a relationship
+
+Question 3 - How many properties can be defined for a NODE KEY constraint?
+Select the correct answers.
+
+[] 0
+[X] 1
+[X] 2
+[X] unlimited
+
 ### Using Indexes
 
 ### Using Query Best Practices
