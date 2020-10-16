@@ -2089,6 +2089,276 @@ Select the correct answers.
 
 ### Using LOAD CSV for Import
 
+At the end of this module, you should be able to:
+
+- Describe the steps for importing data with Cypher.
+- Prepare the graph and data for import:
+
+  Inspect data.
+
+  Determine if data needs to be transformed.
+
+  Determine the size of the data that will be imported.
+
+  Create the Constraints in the graph.
+
+- Import the data with LOAD CSV.
+- Create indexes for newly-loaded data.
+
+#### Loading data with Cypher
+
+In Cypher, you can:
+
+- Load data from a URL (http(s) or file).
+- Process data as a stream of records.
+- Create or update the graph with the data being loaded.
+- Use transactions during the load.
+- Transform and convert values from the load stream.
+- Load up to 10M nodes and relationships.
+
+#### CSV file structure
+
+Including headers in the CSV file reduces syncing issues. If the size of the CSV files is extremely large, it is sometimes better to separate the headers from the data, especially if multiple files will be split to use the same set of headers.
+
+#### Example: Inspect the data at a URL
+
+Before you load the data into your graph, you use Cypher to inspect the data.
+
+With LOAD CSV, you can access CSV data at a URL or stored locally.
+
+Here is an example where we can view the first 10 lines of the file at the URL where the headers are included in the CSV file and the default delimiter is the comma character:
+
+```
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/v4.0-intro-neo4j/people.csv'
+AS line
+RETURN line LIMIT 10
+```
+
+#### Example: Inspect the data stored locally
+
+You can only load local data into a graph with LOAD CSV if the file has been placed in the import folder for the database:
+
+- Can do this if using Neo4j Desktop which runs a local database.
+- Cannot do this for a cloud-based instance such as a Neo4j Sandbox or Neo4j Aura.
+
+To determine where the import folder is for a local database in Neo4j Desktop, you simply go to the Manage pane for the database and then select Open Folder→Import.
+
+Here is an example where we can view the first 10 lines of the local file that has been placed in the import folder for the database:
+
+```
+LOAD CSV WITH HEADERS
+FROM 'file:///people.csv'
+AS line
+RETURN line LIMIT 10
+```
+
+#### Determine if data needs transformation
+
+When you inspect a subset of the data, you should be able to determine what transformations will be required. As you have seen, data is by default interpreted as a string or null. If you want numeric data, then you must transform it with functions such as:
+
+- `toInteger()`
+- `toFloat()`
+
+#### Preview the data transformation
+
+You can preview the transformations you will make by returning their values:
+
+```
+LOAD CSV WITH HEADERS
+FROM 'file:///movies1.csv'
+AS line
+RETURN toFloat(line.avgVote), line.genres, toInteger(line.movieId),
+       line.title, toInteger(line.releaseYear) LIMIT 10
+```
+
+#### Transforming lists
+
+In additions, lists in a field may need to be transformed to usable lists in Cypher. As you can see in the data, the genres field contains data separated by a colon (:). In fact, the genres field is a string and we want to turn it into a Cypher list of string values. To do this, we use the `split()` and `coalesce()` functions as shown here:
+
+```
+LOAD CSV WITH HEADERS
+FROM 'file:///movies1.csv'
+AS line
+RETURN toFloat(line.avgVote), split(coalesce(line.genres,""), ":"),
+       toInteger(line.movieId), line.title, toInteger(line.releaseYear)
+       LIMIT 10
+```
+
+If all fields have data, then `split()` alone will work. If, however, some fields may have no values and you want an empty list created for the property, then you should use `split()` together with `coalesce()`.
+
+#### Guided Exercise: Creating a new database
+
+Thus far in this course, you have been working with a single database, referred to as the neo4j-default database. Assuming that you want to continue using this database as you explore the Movie graph, you will create a new database that will be served by the same database server. Note that hosting multiple databases in a single database server is new in release 4.0 of Neo4j.
+
+Here are the steps to create a new database, `Movies`:
+
+- In Neo4j Browser, select the system database.
+- Create the new movies database in the query edit pane with `CREATE DATABASE Movies`
+- Enter the browser command `:dbs` in the query edit pane to see the list of existing databases.
+- Enter the browser command `:use movies` to switch to this newly created, empty database.
+
+#### Create constraints before loading the data
+
+Here is the code for creating the constraints in the graph where we will import data to Movie and Person nodes where the id property will be unique. Note that the id property is different from the internal id of a node that is created automatically by the graph engine.
+
+```
+CREATE CONSTRAINT UniqueMovieIdConstraint ON (m:Movie) ASSERT m.id IS UNIQUE;
+CREATE CONSTRAINT UniquePersonIdConstraint ON (p:Person) ASSERT p.id IS UNIQUE;
+```
+
+If your load process uses `MERGE`, rather than `CREATE` to create nodes, the load will be VERY slow if constraints are not defined first because `MERGE` needs to determine if the node already exists. The uniqueness constraint is itself an index which makes a lookup fast.
+
+Indexes, however, will slow down the creation of data due to added writes, but are necessary if you want transactionally consistent data and indexes in the database. You should create additional indexes in the graph after the data is loaded.
+
+#### Determine the size of the data to be loaded
+
+It is important for you to understand how much data will be loaded. By default LOAD CSV can handle the loading of up to 100K lines/rows.
+
+You can query the size of your CSV files as follows:
+
+```
+LOAD CSV WITH HEADERS
+FROM 'file:///people.csv'
+AS line
+RETURN count(line)
+```
+
+If the CSV file has fewer that 100K rows, it can easily be loaded with `LOAD CSV`.
+
+#### Loading a large CSV file
+
+If the number of rows exceeds 100K, then you have two options.
+
+The first option is to use `:auto USING PERIODIC COMMIT LOAD CSV`. Placing `:auto USING PERIODIC COMMIT` enables the load, by default, to commit its transactions every 1000 rows which will enable the entire import of a large file to succeed. However, there are certain types of Cypher constructs that will cause `:auto USING PERIODIC COMMIT` to be ignored. Cypher statements that use eager operators will prevent you from using `:auto USING PERIODIC COMMIT`. Some examples of these eager operators include:
+
+- `collect()`
+- `count()`
+- `ORDER BY`
+- `DISTINCT`
+
+If you cannot use `:auto USING PERIODIC COMMIT` because your Cypher include some eager operators, then you can use APOC to import the data, which you will learn about in the the next lesson.
+
+#### Importing nodes
+
+In this example, we import the movie data:
+
+```
+:auto USING PERIODIC COMMIT 500
+LOAD CSV WITH HEADERS FROM
+  'https://data.neo4j.com/v4.0-intro-neo4j/movies1.csv' as row
+MERGE (m:Movie {id:toInteger(row.movieId)})
+    ON CREATE SET
+          m.title = row.title,
+          m.avgVote = toFloat(row.avgVote),
+          m.releaseYear = toInteger(row.releaseYear),
+          m.genres = split(row.genres,":")
+```
+
+With this code, each line is read as row. Then we use the row field names (from the header row) to assign values to a new Movie node. We use built-in functions to transform the string data in the row into values that are assigned to the properties of the Movie node. MERGE is the best choice because we have our uniqueness constraint defined for the id property of the Movie node. We use split() to set the value for the genres property which will be a list.
+
+#### Importing relationships
+
+Then you load data that will create the relationships between the Movie and Person nodes.
+
+Both the directors.csv and roles.csv files contain information about how Movie data is related to Person data.
+
+In this example, we import the data to create the relationships between existing Movie and Person nodes:
+
+```
+LOAD CSV WITH HEADERS FROM
+'https://data.neo4j.com/v4.0-intro-neo4j/directors.csv' AS row
+MATCH (movie:Movie {id:toInteger(row.movieId)})
+MATCH (person:Person {id: toInteger(row.personId)})
+MERGE (person)-[:DIRECTED]->(movie)
+ON CREATE SET person:Director
+```
+
+From each row that is read, we find the Movie node and the Person node. Then we create the :DIRECTED relationship between them. An finally, we add the Director label to the node.
+
+#### Add indexes
+
+The final step after all nodes and relationships have been created in the graph is to create additional indexes. These indexes are based upon the most important queries for the graph.
+
+So for example:
+
+```
+// Do this only after ALL data has been imported
+CREATE INDEX MovieTitleIndex ON (m:Movie) FOR (m.title);
+CREATE INDEX PersonNameIndex ON (p:Person) FOR (p.name)
+```
+
+#### Exercise 16: Using LOAD CSV for import
+
+```
+// Create a new Neo4j database
+:use system;
+CREATE DATABASE importcsv;
+:use importcsv;
+
+// You are given the name of a file, http://data.neo4j.com/v4.0-intro-neo4j/actors.csv that you must load into your graph. Write the Cypher statement to read the actor data from this file.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/v4.0-intro-neo4j/actors.csv'
+AS line
+RETURN line.id, line.name, line.birthYear
+
+// Read the data and return it, ensuring that the data returned is properly formatted. Hint: You want to use birthYear as a number, not a string.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/v4.0-intro-neo4j/actors.csv'
+AS line
+RETURN line.id, line.name, toInteger(trim(line.birthYear))
+
+// Load the data into your graph where you will create Person nodes with the properties: name, born, and actorId
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/v4.0-intro-neo4j/actors.csv'
+AS line
+MERGE (actor:Person {name: line.name})
+  ON CREATE SET actor.born = toInteger(trim(line.birthYear)), actor.actorId = line.id
+  ON MATCH SET actor.actorId = line.id
+
+// You are given the name of a file, http://data.neo4j.com/v4.0-intro-neo4j/movies.csv that you must load into your graph. Write the Cypher statement to read the movie data from this file.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/v4.0-intro-neo4j/movies.csv'
+AS line
+RETURN line.id, line.title, line.year, line.tagLine
+
+// Read the data and return it, ensuring that the data returned is properly formatted.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/v4.0-intro-neo4j/movies.csv'
+AS line
+RETURN line.id, line.title, toInteger(line.year), trim(line.tagLine)
+
+// Load the data into your graph where you will create Movie nodes with the properties: title, released, tagline, and movieId
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/v4.0-intro-neo4j/movies.csv'
+AS line
+MERGE (m:Movie {title: line.title})
+ON CREATE
+  SET m.released = toInteger(trim(line.year)),
+      m.movieId = line.id,
+      m.tagline = line.tagLine
+
+// You are given the name of a file, http://data.neo4j.com/v4.0-intro-neo4j/actor-roles.csv that you must load into your graph. Write the Cypher statement to read the relationship data from this file.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/v4.0-intro-neo4j/actor-roles.csv'
+AS line FIELDTERMINATOR ';'
+RETURN line.personId, line.movieId, line.Role
+
+// Read the data and return it, ensuring that the data returned is properly formatted.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/v4.0-intro-neo4j/actor-roles.csv'
+AS line FIELDTERMINATOR ';'
+RETURN line.personId, line.movieId, split(line.Role,',')
+
+// Load the relationship data into your graph. Hint: You will need to use the properties actorId and movieId to find the nodes in the graph.
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/v4.0-intro-neo4j/actor-roles.csv'
+AS line FIELDTERMINATOR ';'
+MATCH (movie:Movie { movieId: line.movieId })
+MATCH (person:Person { actorId: line.personId })
+MERGE (person)-[:ACTED_IN { roles: split(line.Role,',')}]->(movie)
+```
+
 ### Using APOC for Import
 
 ### Using the neo4j-admin tool for Import
