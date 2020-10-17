@@ -2766,6 +2766,43 @@ Select the correct answers.
 
 ### Using the Neo4j ETL Tool for Import
 
+#### Why use the Neo4j ETL Tool for the import?
+
+- The Neo4j ETL Tool requires that both the source RDBMS and the target DBMS are online.
+- It enables you to control how much of the data in an existing RDBMS will be imported into the graph.
+- It also enables you to customize how nodes and relationships will be created in the graph.
+
+#### Steps for importing with the ETL Tool
+
+1. Install the Neo4j ETL Tool into your Neo4j Desktop project.
+2. Create and start the Neo4j database into which you will import the data.
+3. Use the Neo4j ETL Tool to import the data:
+   a. Specify and test the RDBMS connection.
+   b. Prepare for mapping
+   c. View the default mapping to be performed.
+   d. Optionally, modify the default mapping.
+   e.Perform the import.
+
+#### Check your understanding
+
+Question 1 - What type of connection to the RDBMS is used for importing from an RDBMS with the Neo4j ETL Tool? `JDBC`
+
+Question 2 - What are some of the things that you can you modify for the mapping from the RDBMS?
+Select the correct answers.
+
+[X] What nodes will be created.
+[X] What relationships will be created.
+[X] Node labels.
+[X] Relationship types.
+
+Question 3 - What property information can be modified in the mapping?
+Select the correct answers.
+
+[X] Node property names
+[X] Node property types
+[] Relationship property names
+[] Relationship property types
+
 ## Resources
 
 Here are some resources you will use as you learn about Neo4j and Cypher for this course:
