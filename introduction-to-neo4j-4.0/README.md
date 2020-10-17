@@ -2729,6 +2729,41 @@ CREATE DATABASE crimes;
 
 ### Using an Application for Import
 
+#### Exercise 19: Importing data from an RDBMS using an application
+
+```
+// This example allows you to use a custom Java application and Groovy to connect to an existing database and bring data in.
+//
+// I am not interested in pursuing this 🤓
+```
+
+#### Check your understanding
+
+Question 1 - What supported drivers can you use to write a Neo4j application?
+Select the correct answers.
+
+[X] Java
+[X] JavaScript
+[X] Python
+[X] Go
+[X] C#
+
+Question 2 - What programming languages support asynchronous calls to Neo4j:
+Select the correct answers.
+
+[] JavaScript
+[X] Java
+[] Python
+[X] C#
+
+Question 3 - What programming languages support synchronous calls to Neo4j:
+Select the correct answers.
+
+[X] JavaScript
+[X] Java
+[X] Python
+[X] C#
+
 ### Using the Neo4j ETL Tool for Import
 
 ## Resources
