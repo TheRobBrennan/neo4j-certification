@@ -2661,6 +2661,72 @@ Select the correct answers.
 
 ### Using the neo4j-admin tool for Import
 
+#### What is neo4j-admin?
+
+A Neo4j installation includes a bin folder that contains some useful utilities that can be used by both developers and administrators. These include:
+
+- `neo4j`, used for starting, stopping, and checking the status of the Neo4j instance.
+- `cypher-shell`, a command-line version of a Cypher interface that enables you to execute Cypher statements.
+- `admin-tool`, used for a number of administrative activities including creating a database from CSV files.
+
+In this lesson, you will learn how to use the import feature of `neo4j-admin`. You should use `neo4j-admin` for import when you have extremely large amounts of data to import, for example greater than 10M nodes.
+
+#### Preparing for import
+
+Unlike using Cypher to import the data, you don’t have the flexibility to transform the data during the import. You must ensure that the data in the CSV files is clean and ready for import.
+
+When using neo4j-admin for import, there are differences from importing with Cypher:
+
+- The database to be imported into must not exist as it will be created as part of the import.
+- The header information has additional information used for creating the nodes and relationships.
+- Node CSV files are structured differently from relationship CSV files.
+- All CSV files must use the same field separator.
+- You create the constraints (and indexes) after the import.
+
+#### CSV files
+
+The format of the CSV files is important:
+
+- For both nodes and relationships, header information must be associated with the data.
+- Header information contains an ID to uniquely identify the record, optional node labels or relationship types, and names for the properties representing the imported data.
+- A CSV can have a header row, or you can place the header information in a separate file.
+
+#### Exercise 18: Importing data with the import command of neo4j-admin
+
+```
+// Download the archive containing the CSV files from http://data.neo4j.com/v4.0-intro-neo4j/crimes-dataset.zip
+// In Neo4j Desktop for the project’s database you are using, select Manage > Open Folder
+//    In my case, this folder is at ~/Library/Application Support/com.Neo4j.Relate/Data/dbmss/dbms-cb0fe6af-6f68-422b-8af5-8daf9069a43c/import
+//    Copy the CSV files to this import folder directly
+//    In a text editor of your choice, examine the CSV files. Make sure you understand the headers and how they will be used for the import.
+
+// Open a terminal window for the Neo4j instance
+// In Neo4j Desktop for the project you are using, do the following:
+//    For the project’s database that should be running, select Manage > Open Terminal.
+//    Navigate to the import folder.
+
+// In the terminal you just opened, run the following command:
+$ ../bin/neo4j-admin import --database crimes --nodes crimes_header.csv,crimes.csv --nodes beats.csv --nodes=PrimaryType=primaryTypes.csv --relationships crimesBeats.csv --relationships=PRIMARY_TYPE=crimesPrimaryTypes.csv --trim-strings=true > import.out
+
+// Did the import work as expected?
+$ tail import.out
+.......... .......... .......... .......... ..........  95% ∆440ms
+.......... .......... .......... .......... .......... 100% ∆1ms
+
+
+IMPORT DONE in 16s 832ms.
+Imported:
+  4193782 nodes
+  8386880 relationships
+  12553547 properties
+Peak memory usage: 864.0MiB
+
+// IMPORTANT: At this point, the database files have been created, but you must use the `system` database to add the crimes data base to your environment.
+:use system;
+CREATE DATABASE crimes;
+:use crimes;
+```
+
 ### Using an Application for Import
 
 ### Using the Neo4j ETL Tool for Import
